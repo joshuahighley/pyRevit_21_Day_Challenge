@@ -27,6 +27,7 @@ clr.AddReference('System')
 from System.Collections.Generic import List
 
 from Autodesk.Revit.UI.Selection import ObjectType
+from pyrevit import forms
 
 
 # VARIABLES ----------------------------------------------------
@@ -35,6 +36,9 @@ app    = __revit__.Application
 uidoc  = __revit__.ActiveUIDocument
 doc    = __revit__.ActiveUIDocument.Document #type:Document
 
+mir_param = 'IsMirrored'    #Project parameter to indicate if door (or in the future window) is mirrored
+cat = BuiltInCategory.OST_Doors
+
 # FUNCTIONS ----------------------------------------------------
 
 
@@ -42,19 +46,27 @@ doc    = __revit__.ActiveUIDocument.Document #type:Document
 # MAIN ---------------------------------------------------------
 
 # 1. Get All Doors
-cat = BuiltInCategory.OST_Doors
-all_doors = FilteredElementCollector(doc).OfCategory().WhereElementIsNotElementType().ToElements()
+all_doors = FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType().ToElements()
 
 
 # 2. Find Swing Direction
 t = Transaction(doc, 'Door Swing')
-t.Start() # ALLOWS CHANGES
+t.Start() # ALLOWS CHANGES IN REVIT 
 
 for door in all_doors:
     val = 'Mirrored' if door.Mirrored else 'Unmirrored'
-    print("Door is Mirrored: " + str(door.Mirrored))
+    #print("Door is Mirrored: " + str(door.Mirrored))
 
-    param = door.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
-    param.Set(val)
+    param = door.LookupParameter(mir_param)
+    #mark = str(door.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK))
+    mark = door.LookupParameter("Mark").AsString()
 
-t.Commit()
+    try:
+        param.Set(val)
+        print('Door #{}: {}'.format(mark, mir_param))
+    except(AttributeError):
+        forms.alert(mir_param + ' parameter not found in project.', exitscript=True)
+
+
+
+t.Commit() # ENDS CHANGES IN REVIT
