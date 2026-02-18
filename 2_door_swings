@@ -48,7 +48,6 @@ cat = BuiltInCategory.OST_Doors
 # 1. Get All Doors
 all_doors = FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType().ToElements()
 
-
 # 2. Find Swing Direction
 t = Transaction(doc, 'Door Swing')
 t.Start() # ALLOWS CHANGES IN REVIT 
@@ -58,15 +57,12 @@ for door in all_doors:
     #print("Door is Mirrored: " + str(door.Mirrored))
 
     param = door.LookupParameter(mir_param)
-    #mark = str(door.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK))
-    mark = door.LookupParameter("Mark").AsString()
+    mark = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
 
     try:
         param.Set(val)
-        print('Door #{}: {}'.format(mark, mir_param))
+        print('Door #{}: {}'.format(mark.AsValueString(), mir_param))
     except(AttributeError):
         forms.alert(mir_param + ' parameter not found in project.', exitscript=True)
-
-
 
 t.Commit() # ENDS CHANGES IN REVIT
