@@ -61,7 +61,7 @@ for door in all_doors:
 
     try:
         param.Set(val)
-        print('Door #{}: {}'.format(mark.AsValueString(), mir_param))
+        print('Door #{}: {}'.format(mark.AsValueString(), val))
     except(AttributeError):
         forms.alert(mir_param + ' parameter not found in project.', exitscript=True)
 
