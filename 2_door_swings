@@ -39,8 +39,8 @@ doc    = __revit__.ActiveUIDocument.Document #type:Document
 mir_param = 'IsMirrored'    #Project parameter to indicate if door (or in the future window) is mirrored
 cat = BuiltInCategory.OST_Doors
 
-# FUNCTIONS ----------------------------------------------------
 
+# FUNCTIONS ----------------------------------------------------
 
 
 # MAIN ---------------------------------------------------------
@@ -50,12 +50,12 @@ all_doors = FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotEleme
 
 # 2. Find Swing Direction
 t = Transaction(doc, 'Door Swing')
-t.Start() # ALLOWS CHANGES IN REVIT 
+
+## ALLOW CHANGES IN REVIT
+t.Start()
 
 for door in all_doors:
     val = 'Mirrored' if door.Mirrored else 'Unmirrored'
-    #print("Door is Mirrored: " + str(door.Mirrored))
-
     param = door.LookupParameter(mir_param)
     mark = door.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
 
@@ -65,4 +65,5 @@ for door in all_doors:
     except(AttributeError):
         forms.alert(mir_param + ' parameter not found in project.', exitscript=True)
 
-t.Commit() # ENDS CHANGES IN REVIT
+t.Commit()
+## END CHANGES IN REVIT
