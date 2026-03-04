@@ -73,6 +73,9 @@ def bb_from_multiple(list_rooms, new_view):
 dict_flats = defaultdict(list)
 all_rooms = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).ToElements()
 
+if not all_rooms:
+    forms.alert('No apartments found.', exitscript=True)
+
 # Sort rooms into collectives (all of one flat in one list)
 for room in all_rooms:
     try:
