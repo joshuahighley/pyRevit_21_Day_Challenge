@@ -21,7 +21,7 @@ from System.Collections.Generic import List
 from System import Int64
 
 from Autodesk.Revit.UI.Selection import ObjectType
-from pyrevit import forms
+from pyrevit import forms, script
 from collections import defaultdict
 import datetime
 
@@ -35,6 +35,7 @@ doc    = __revit__.ActiveUIDocument.Document #type:Document
 rvt_year = int(app.VersionNumber)
 active_view = doc.ActiveView
 view_fam_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeFloorPlan)
+output = script.get_output()
 
 
 # FUNCTIONS ----------------------------------------------------
@@ -77,7 +78,6 @@ for room in all_rooms:
     try:
         building = room.LookupParameter('Building').AsString()
         flat = room.LookupParameter('Flat').AsString()
-        #occ = room.get_Parameter(BuiltInParameter.ROOM_OCCUPANCY).AsString()
     except:
         forms.alert("Mising Room Parameter ['Building', 'Flat'].", exitscript=True)
 
@@ -90,28 +90,47 @@ for room in all_rooms:
 t = Transaction(doc, __title__)
 t.Start()  
 
-ct = 0
+
+table_data = []
+
 # Create room dict of room info
 for room in dict_flats:
-    list_rooms = dict_flats[room]
-    offset_ft = UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
-    view_bb     = BoundingBoxXYZ()
-
-    view_bb = bb_from_multiple(list_rooms, active_view)
+    list_rooms  = dict_flats[room]
+    offset_ft   = UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
 
     # Create new view    
-    new_view = ViewPlan.Create(doc, view_fam_type_id, list_rooms[0].LevelId)
-    room_bb = bb_from_multiple(list_rooms, new_view)
+    new_view    = ViewPlan.Create(doc, view_fam_type_id, list_rooms[0].LevelId)
+    room_bb     = bb_from_multiple(list_rooms, new_view)
+    new_view.CropBox = room_bb
     new_view.CropBoxActive = True
     new_view.CropBoxVisible = True
-    new_view.DetailLevel = ViewDetailLevel.Fine
-    new_view.CropBox = view_bb
 
-    ct += 1
+    # If basic room name is taken as view name, try with the date
     try:
-        new_view.Name = room + str(ct)
+        new_view.Name = room
     except:
-        new_view.Name = 'test_' + str(ct) + datetime.datetime.now().strftime(" (%Y%m%d-%H%M)")
+        new_view.Name = room + datetime.datetime.now().strftime(" (%Y%m%d-%H%M)")
+
+    # 
+    # link_rooms = output.linkify(room.Id, "Select {} Rooms".format(len(room.Id)))
+    link_view  = output.linkify(new_view.Id, new_view.Name)
+
+    # Get room area, append
+    total_m2 = 0
+    for room in list_rooms:
+        m2 = UnitUtils.ConvertFromInternalUnits(room.Area, UnitTypeId.SquareMeters)
+        m2 = round(m2,2)
+        total_m2 += m2
+
+    data_row = [link_view, total_m2]
+    table_data.append(data_row)
 
 t.Commit()
 ## END CHANGES IN REVIT
+
+
+# Print report
+output.print_table(table_data=table_data,
+                    title="Auto-Planner Report",
+                    columns=['Apartment', 'Total Area m²'],
+                    formats=['**{}**', '{}m²'])
