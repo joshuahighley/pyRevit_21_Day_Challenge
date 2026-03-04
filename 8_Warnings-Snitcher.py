@@ -10,7 +10,7 @@ DESCRIPTION:
 
 # IMPORTS ------------------------------------------------------
 
-from email.policy import default
+from ctypes import cast
 from pydoc import describe
 
 from Autodesk.Revit.DB import *
@@ -40,39 +40,64 @@ output = script.get_output()
 # MAIN ---------------------------------------------------------
 
 # Collect all warnings
-warnings = doc.GetWarnings()
-all_warnings = defaultdict(list)
+all_warnings = doc.GetWarnings()
 
 # Sort warnings by desc
 sorted_warnings = defaultdict(list)
-for w in sorted_warnings:
+
+for w in all_warnings:
     description = w.GetDescriptionText()
     sorted_warnings[description].append(w)
 
-
+if not sorted_warnings:
+    forms.alert('No warnings? Nice!! :)',  exitscript=True)
 
 # Select warning types
+sel_warning_names = forms.SelectFromList.show(sorted_warnings.keys(),
+                                              button_name='Select',
+                                              multiselect=True,
+                                              title='Select Warning Types')
+if not sel_warning_names:
+    forms.alert('No Warning Types selected. Try again.')
+    sel_warning_names = forms.SelectFromList.show(sorted_warnings.keys(),
+                                              button_name='Select',
+                                              multiselect=True,
+                                              title='Select Warning Types')
+if not sel_warning_names:
+    forms.alert('No Warning Types selected. Try running the tool again.',  exitscript=True)
 
 
-for w in warnings:
-    desc = w.GetDescriptionText()
+table_data = []
 
-    fail_elem_ids = w.GetFailingElements()
-    add_elem_ids = w.GetAdditionalElements()
+for w_description, list_w in sorted_warnings.items():
+    if w_description not in sel_warning_names:
+        continue
 
-    elem_ids = list(fail_elem_ids) + list(add_elem_ids)
-    elems = [doc.GetElement(e_id) for e_id in elem_ids]
+    for w in list_w:
+        data = []
 
-    all_warnings[desc].append(w)
-    
-    link = output.linkify(elem_ids)
+        fail_elem_ids   = w.GetFailingElements()
+        add_elem_ids    = w.GetAdditionalElements()
+        w_elem_ids      = list(fail_elem_ids) + list(add_elem_ids)
+        w_elem          = [doc.GetElement(elem_id) for elem_id in w_elem_ids]
 
-    print('\n' + desc)
-    print(link)
-    print('-'*30)
+        cats            = {elem.Category.Name for elem in w_elem}
+        cats            = ','.join(cats)
 
+        levels = []
+        for elem in w_elem:
+            if elem.LevelId and elem.LevelId != ElementId.InvalidElementId:
+                lvl = doc.GetElement(elem.LevelId)
+                levels.append(lvl.Name)
+        levels = (','.join(levels))
 
+    link = output.linkify(w_elem_ids)
 
-# items = ['one', 'two', 'three']
-# sel_warm_types = forms.SelectFromList.show(items, button_name='Select Item', multiselect=True)
+    data = [w_description[:40]+'...', link, len(w_elem_ids), cats, levels]
+    table_data.append(data)
 
+output.print_table(
+    table_data=table_data,
+    title = 'Warnings Report',
+    columns = ['Warning Type','Select','Amount','Categories','Levels']
+)
